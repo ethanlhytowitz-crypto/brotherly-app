@@ -1,0 +1,13 @@
+{
+  "name": "brotherly",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The older brother you never had. Or the one you need right now.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

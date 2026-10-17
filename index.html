@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Brotherly</title>
+<meta name="description" content="The older brother you never had. Or the one you need right now.">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f4f0" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Brotherly">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+/* Layout: phone-first chat column. Header = brand + current-brother card + age slider; thread scrolls; composer at bottom.
+   Picker = full-screen sheet: search, 20 gradient type filters, 500-card grid. Each brother tints the UI with his type's two-color gradient (--c1 → --c2). */
+:root{
+  --bg:#f6f4f0; --surface:#ffffff; --ink:#1b2030; --muted:#6a7083; --line:#e3dfd7; --you:#ece8e0; --them:#e9e9ec;
+  --c1:#00c2a8; --c2:#a8e063;
+  --grad:linear-gradient(135deg,var(--c1),var(--c2));
+  --display:"Bricolage Grotesque",ui-rounded,system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1118; --surface:#181b25; --ink:#eeebe4; --muted:#979cac; --line:#262a36; --you:#222634; --them:#262833; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1118; --surface:#181b25; --ink:#eeebe4; --muted:#979cac; --line:#262a36; --you:#222634; --them:#262833; color-scheme:dark}
+html,body{height:100%}
+html{font-size:clamp(16px,13.5px + .5vw,22px)}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:1rem;line-height:1.5;overflow:hidden}
+button{font-family:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--c1);outline-offset:2px}
+* {--grad:linear-gradient(135deg,var(--c1),var(--c2))}
+
+.app{height:100%;display:flex;flex-direction:column;width:100%;
+  padding-left:max(16px,env(safe-area-inset-left,0px),3vw);padding-right:max(16px,env(safe-area-inset-right,0px),3vw)}
+@media (min-width:900px){.thread .msg{max-width:65%}}
+header{padding-block:10px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;border-bottom:1px solid var(--line)}
+.topbar{width:100%;display:flex;justify-content:space-between;align-items:center}
+.brandmark{font-family:var(--display);font-weight:800;font-size:1.05rem;letter-spacing:-.02em}
+.brandmark span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.icon-btn{font:600 .78rem var(--body);background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:4px 11px;cursor:pointer}
+.icon-btn[aria-pressed="true"]{color:var(--ink);border-color:color-mix(in oklab,var(--c1) 50%,var(--line))}
+.contact{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;padding:0 8px 4px;cursor:pointer;max-width:100%}
+.contact .av{--size:3.4rem}
+.contact-name{font-weight:600;font-size:.95rem;display:flex;align-items:center;gap:3px}
+.chev{color:var(--muted);font-size:1.1rem;line-height:1}
+.contact-sub{font-size:.75rem;color:var(--muted);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.av{--size:2.6rem;width:var(--size);height:var(--size);flex:none;border-radius:50%;display:grid;place-items:center;
+  background:var(--grad);color:#fff;font:700 calc(var(--size)*.42) var(--body);text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.age-row{width:100%;max-width:420px}
+.age-row{display:flex;align-items:center;gap:10px;font-size:.8rem;color:var(--muted)}
+.age-row label{font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:.7rem}
+.age-row input{flex:1;min-width:0;accent-color:var(--c1)}
+.age-val{font:800 1rem var(--display);color:var(--ink);min-width:2.2ch;text-align:right;font-variant-numeric:tabular-nums}
+.age-reset{background:none;border:0;color:var(--muted);font-size:.75rem;cursor:pointer;text-decoration:underline;padding:0}
+
+.thread{flex:1;overflow-y:auto;padding-block:10px 14px;display:flex;flex-direction:column;gap:2px;min-height:0;scrollbar-width:thin}
+.msg{position:relative;max-width:78%;padding:.45em .85em;border-radius:1.2em;white-space:pre-wrap;overflow-wrap:anywhere;min-width:0;font-size:1rem;line-height:1.38}
+.msg.you{align-self:flex-end;background:linear-gradient(135deg,color-mix(in oklab,var(--c1) 88%,#000),color-mix(in oklab,var(--c2) 78%,#000));color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.18)}
+.msg.bro{align-self:flex-start;background:var(--them)}
+.msg.first{margin-top:8px}
+.msg.you.tail{border-bottom-right-radius:5px}
+.msg.bro.tail{border-bottom-left-radius:5px}
+.stamp{align-self:center;font-size:.7rem;color:var(--muted);margin:10px 0 4px}
+.stamp b{font-weight:600}
+.sys{align-self:center;font-size:.72rem;color:var(--muted);margin:12px 0 4px;text-align:center}
+.sys b{font-weight:600;color:var(--ink)}
+.receipt{align-self:flex-end;font-size:.68rem;color:var(--muted);margin:1px 6px 0 0}
+.typing{display:inline-flex;gap:4px;padding:5px 0}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--c1);opacity:.5}
+@media (prefers-reduced-motion:no-preference){
+  .msg{animation:pop .2s ease-out}
+  @keyframes pop{from{transform:translateY(5px) scale(.98);opacity:.5}to{transform:none;opacity:1}}
+  .typing i{animation:blink 1s infinite}.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+  @keyframes blink{50%{opacity:1}}
+}
+
+.starters{display:flex;gap:7px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}
+.starter{flex:none;font:500 .84rem var(--body);background:var(--surface);border:1px solid var(--line);color:var(--muted);padding:7px 12px;border-radius:999px;cursor:pointer}
+.starter:hover{color:var(--ink);border-color:color-mix(in oklab,var(--c1) 45%,var(--line))}
+form{display:flex;gap:8px;align-items:flex-end;padding-block:8px max(10px,env(safe-area-inset-bottom,0px))}
+.field{flex:1;min-width:0;display:flex;align-items:flex-end;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:3px 3px 3px 14px}
+.field:focus-within{border-color:color-mix(in oklab,var(--c1) 50%,var(--line))}
+textarea{flex:1;min-width:0;resize:none;font:1rem var(--body);color:var(--ink);background:none;border:0;padding:6px 6px 6px 0;max-height:130px;outline:none;line-height:1.35}
+.send{width:1.9rem;height:1.9rem;flex:none;border:0;border-radius:50%;background:var(--grad);color:#fff;cursor:pointer;display:grid;place-items:center}
+.send:disabled{opacity:.4;cursor:default}
+.send svg{width:1rem;height:1rem}
+.foot{display:flex;justify-content:center;padding-bottom:6px}
+.reset{font:500 .75rem var(--body);background:none;border:0;color:var(--muted);cursor:pointer;padding:2px 6px}
+.reset:hover{color:var(--ink)}
+
+.shell{height:100%;display:flex;min-height:0}
+.shell .app{flex:1;min-width:0}
+@media (min-width:900px){
+  .shell .sheet{position:static;display:flex!important;flex:none;width:clamp(300px,26vw,420px);border-right:1px solid var(--line);
+    background:color-mix(in oklab,var(--c1) 4%,var(--bg));padding:0}
+  .shell .sheet .sheet-in{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:14px}
+  .shell .sheet .grid{grid-template-columns:1fr;gap:6px}
+  .shell .sheet #close{display:none}
+  .shell .sheet .sheet-head h2{font-size:1.25rem}
+  .contact .chev{display:none}
+}
+/* Picker */
+.sheet{position:fixed;inset:0;z-index:20;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.sheet-in{max-width:960px;width:100%;margin:0 auto;display:flex;flex-direction:column;min-height:0;flex:1;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sheet-top{padding-block:16px 10px;display:flex;flex-direction:column;gap:11px}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sheet-head h2{font-family:var(--display);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;margin:0}
+.head-btns{display:flex;gap:6px}
+.pill-btn{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-weight:600;font-size:.85rem;cursor:pointer}
+.search{font:16px var(--body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 14px;outline:none;width:100%}
+.search:focus{border-color:var(--muted)}
+.filters{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.filter{flex:none;display:inline-flex;align-items:center;gap:7px;font:600 .82rem var(--body);cursor:pointer;background:var(--surface);border:1px solid var(--line);padding:6px 12px 6px 8px;border-radius:999px}
+.filter .dot{width:14px;height:14px;border-radius:50%;background:var(--grad)}
+.filter[aria-pressed="true"]{background:var(--grad);border-color:transparent;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.3)}
+.filter[aria-pressed="true"] .dot{background:rgba(255,255,255,.85)}
+.filter.all{padding-left:12px}
+.filter.all[aria-pressed="true"]{background:var(--ink);color:var(--bg);text-shadow:none}
+.count{font-size:.78rem;color:var(--muted)}
+.grid{flex:1;overflow-y:auto;min-height:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:8px;align-content:start;padding-block:4px 20px}
+.card{display:flex;gap:11px;align-items:center;text-align:left;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 12px;transition:border-color .15s,background .15s}
+.card:hover{border-color:color-mix(in oklab,var(--c1) 50%,var(--line));background:color-mix(in oklab,var(--c1) 7%,var(--surface))}
+.card[aria-current="true"]{border-color:var(--c1);background:color-mix(in oklab,var(--c1) 12%,var(--surface))}
+.card .av{--size:2.4rem}
+.card-text{min-width:0;flex:1}
+.card-name{font-weight:700;font-size:.93rem;line-height:1.25}
+.card-name .age{font-weight:500;color:var(--muted)}
+.card-who{font-size:.8rem;color:var(--muted);line-height:1.3;margin-top:1px}
+.empty{grid-column:1/-1;color:var(--muted);text-align:center;padding:30px 0}
+.topbar-right{display:flex;gap:6px;align-items:center}
+.side-btn{display:none}
+@media (min-width:900px){.side-btn{display:inline-block}
+  body.side-hidden .shell .sheet{display:none!important}}
+.plan-btn{font:800 .7rem var(--body);letter-spacing:.08em;border:0;border-radius:999px;padding:5px 11px;cursor:pointer;color:#fff;
+  background:linear-gradient(135deg,var(--c1),var(--c2));text-shadow:0 1px 1px rgba(0,0,0,.3)}
+.plan-btn[data-plan="pro"]{background:linear-gradient(135deg,#1a1a1a,#c9a227)}
+.plan-btn[data-plan="free"]{background:var(--surface);color:var(--ink);border:1px solid var(--line);text-shadow:none}
+.ai-tag{display:inline-block;font:700 .62rem var(--body);letter-spacing:.06em;padding:1px 6px;border-radius:999px;border:1px solid var(--line);color:var(--muted);margin-right:5px;vertical-align:1px}
+.card.locked{opacity:.55}
+.card .lock{font:700 .62rem var(--body);letter-spacing:.06em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 7px;flex:none}
+.celeb{grid-column:1/-1;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;
+  background:linear-gradient(135deg,color-mix(in oklab,#c9a227 14%,var(--surface)),color-mix(in oklab,#1a1a1a 10%,var(--surface)));border:1px solid color-mix(in oklab,#c9a227 45%,var(--line))}
+.celeb-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.celeb-head h3{margin:0;font:800 1.05rem var(--display);letter-spacing:-.01em}
+.celeb-head p{margin:0;font-size:.78rem;color:var(--muted)}
+.pro-pill{font:800 .62rem var(--body);letter-spacing:.08em;color:#fff;background:linear-gradient(135deg,#1a1a1a,#c9a227);padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:2px}
+.celeb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,180px),1fr));gap:8px}
+.ccard{display:flex;gap:10px;align-items:center;text-align:left;cursor:pointer;background:var(--surface);border:1px dashed color-mix(in oklab,#c9a227 55%,var(--line));border-radius:14px;padding:9px 11px}
+.ccard .av{--size:2.2rem;background:linear-gradient(135deg,#1a1a1a,#c9a227)}
+.ccard b{display:block;font-size:.85rem;line-height:1.25}
+.ccard span.soon{font-size:.72rem;color:var(--muted)}
+.ccard[aria-pressed="true"] span.soon{color:color-mix(in oklab,#c9a227 75%,var(--ink));font-weight:600}
+.shell .sheet .celeb-grid{grid-template-columns:1fr 1fr}
+/* Plans */
+.plans{position:fixed;inset:0;z-index:40;background:color-mix(in oklab,var(--bg) 70%,transparent);backdrop-filter:blur(6px);display:grid;place-items:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));overflow-y:auto}
+.plans-box{width:min(100%,980px);background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:22px;display:flex;flex-direction:column;gap:16px;box-shadow:0 20px 60px rgba(0,0,0,.18)}
+.plans-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.plans-head h2{margin:0;font:800 1.6rem var(--display);letter-spacing:-.02em;text-wrap:balance}
+.plans-head p{margin:4px 0 0;color:var(--muted);font-size:.9rem}
+.bill{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px;align-self:flex-start}
+.bill button{border:0;background:none;border-radius:999px;padding:6px 14px;font-weight:600;font-size:.82rem;cursor:pointer;color:var(--muted)}
+.bill button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.bill .save{color:#2e9e5b;font-weight:700;margin-left:4px}
+.tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+.tier{border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.tier.hot{border:2px solid #c9a227;background:color-mix(in oklab,#c9a227 6%,var(--surface))}
+.tier h3{margin:0;font:800 1.15rem var(--display)}
+.tier .price{font:800 2rem var(--display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.tier .price small{font:500 .8rem var(--body);color:var(--muted);letter-spacing:0}
+.tier ul{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:5px;font-size:.88rem;flex:1}
+.tier .choose{border:0;border-radius:12px;padding:11px;font-weight:700;cursor:pointer;background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.tier.hot .choose{background:linear-gradient(135deg,#1a1a1a,#c9a227);color:#fff;border:0}
+.tier .current-tag{font-size:.75rem;color:var(--muted);text-align:center}
+.plans-note{font-size:.75rem;color:var(--muted);margin:0}
+.reason{font-size:.85rem;font-weight:600;color:color-mix(in oklab,#c9a227 70%,var(--ink));margin:0}
+</style>
+</head>
+<body>
+
+<div class="shell">
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="sheet-in">
+    <div class="sheet-top">
+      <div class="sheet-head">
+        <h2 id="sheet-title">Your brothers</h2>
+        <div class="head-btns">
+          <button class="pill-btn" id="random" type="button">Random</button>
+          <button class="pill-btn" id="close" type="button">Done</button>
+        </div>
+      </div>
+      <input class="search" id="search" type="search" placeholder="Search name, job or vibe (chef, Philly, gamer…)" aria-label="Search brothers">
+      <div class="filters" id="filters" role="group" aria-label="Brother types"></div>
+      <div class="count" id="count"></div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <header>
+    <div class="topbar">
+      <span class="brandmark">Brotherly<span>.</span></span>
+      <div class="topbar-right">
+        <button class="icon-btn side-btn" id="side-toggle" type="button" aria-pressed="true">Hide list</button>
+        <button class="icon-btn" id="age-toggle" type="button" aria-pressed="false" aria-controls="age-row">Age</button>
+        <button class="plan-btn" id="plan-btn" type="button" data-plan="pro">PRO</button>
+      </div>
+    </div>
+    <button class="contact" id="current" type="button" aria-label="Choose your brother">
+      <span class="av" id="cur-av">J</span>
+      <span class="contact-name"><span id="cur-name">Jalen</span><span class="chev">›</span></span>
+      <span class="contact-sub" id="cur-who"></span>
+    </button>
+    <div class="age-row" id="age-row" hidden>
+      <label for="age">Age</label>
+      <input type="range" id="age" min="16" max="45" step="1" value="21">
+      <span class="age-val" id="age-val">21</span>
+      <button class="age-reset" id="age-reset" type="button" hidden>Reset</button>
+    </div>
+  </header>
+
+  <div class="thread" id="thread" aria-live="polite"></div>
+
+  <div class="starters" id="starters">
+    <button class="starter" id="s1" type="button">My friend's been ignoring me</button>
+    <button class="starter" id="s2" type="button">Too much on my plate this week</button>
+    <button class="starter" id="s3" type="button">How do I talk to someone I like</button>
+    <button class="starter" id="s4" type="button">Fighting with my parents</button>
+    <button class="starter" id="s5" type="button">Help me get out of plans</button>
+  </div>
+
+  <form id="form">
+    <div class="field">
+      <textarea id="input" rows="1" placeholder="Text Message" aria-label="Your message"></textarea>
+      <button class="send" id="send" type="submit" aria-label="Send">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      </button>
+    </div>
+  </form>
+  <div class="foot"><button class="reset" id="reset" type="button">Start a new convo</button></div>
+</div>
+
+</div>
+<div class="plans" id="plans" hidden role="dialog" aria-modal="true" aria-labelledby="plans-title">
+  <div class="plans-box">
+    <div class="plans-head">
+      <div>
+        <h2 id="plans-title">Pick your plan</h2>
+        <p class="reason" id="plans-reason" hidden></p>
+        <p>Every plan keeps the same brothers, the same safety rules and no ads.</p>
+      </div>
+      <button class="pill-btn" id="plans-close" type="button">Close</button>
+    </div>
+    <div class="bill" role="group" aria-label="Billing">
+      <button type="button" id="bill-year" aria-pressed="true">Yearly<span class="save">save up to 37%</span></button>
+      <button type="button" id="bill-month" aria-pressed="false">Monthly</button>
+    </div>
+    <div class="tiers">
+      <div class="tier" data-tier="free">
+        <h3>Free</h3>
+        <div class="price">$0</div>
+        <ul><li>10 brothers that change every week</li><li>30 texts a day</li><li>Real texting feel, read receipts and all</li></ul>
+        <button class="choose" type="button" id="pick-free">Use Free</button>
+      </div>
+      <div class="tier" data-tier="plus">
+        <h3>Brotherly+</h3>
+        <div class="price" id="price-plus">$59.99<small> / year</small></div>
+        <ul><li>All 500 brothers</li><li>Unlimited texts</li><li>Age slider for every brother</li><li>He remembers your last convo</li><li>Share cards for your best convos</li></ul>
+        <button class="choose" type="button" id="pick-plus">Try Brotherly+ free for 7 days</button>
+      </div>
+      <div class="tier hot" data-tier="pro">
+        <h3>Brotherly Pro</h3>
+        <div class="price" id="price-pro">$119.99<small> / year</small></div>
+        <ul><li>Everything in Brotherly+</li><li><b>Celebrity brothers</b>, officially licensed</li><li>Voice notes and calls</li><li>Group chats with several brothers</li><li>Build your own brother</li><li>Sisterly and every future -ly app</li></ul>
+        <button class="choose" type="button" id="pick-pro">Try Pro free for 7 days</button>
+      </div>
+    </div>
+    <p class="plans-note">Early access: payments aren't live yet, so picking a plan here just shows you that version of the app.</p>
+  </div>
+</div>
+
+<script>
+const CATS = [
+ {k:"chill",label:"Chill",c1:"#00c2a8",c2:"#a8e063",style:"Totally unbothered, talks slow, makes everything feel like less of a big deal.",
+  roles:"skater who works at a surf shop|surf instructor|barista and philosophy minor|tattoo artist|taco truck owner|lifeguard|park ranger who loves hammocks|record store clerk|beach volleyball regular|yoga teacher|dog walker|guy who lives in a vintage van|ice cream shop manager|disc golf champion|sunset photographer|bike mechanic|hostel front desk guy|plant shop owner|bowling alley night manager|kombucha brewer|longboarder|pool cleaner|mini golf attendant|crossword puzzle guy|fisherman who never catches anything"},
+ {k:"funny",label:"Funny",c1:"#ffb800",c2:"#ff4fa3",style:"Turns your problem into a bit, gets a laugh out of you, then actually helps.",
+  roles:"stand-up comic|meme lord|improv performer|professional roaster|brand-new dad with dad jokes|guy who does voices and impressions|lovable chaos agent|sitcom writer|wedding DJ who tells too many jokes|magician who's bad at magic|retired prankster|sports mascot performer|cartoonist|karaoke legend|birthday party clown|sarcastic waiter|late-night host wannabe|blooper reel collector|roast battle champ|theme park ride operator|overconfident trivia guy|podcast host with three listeners|drama club alum|prank war veteran|guy who narrates life like a nature documentary"},
+ {k:"hype",label:"Hype",c1:"#ff6a00",c2:"#ee0979",style:"Thinks you're the GOAT and gets you fired up. Never hypes a bad idea though.",
+  roles:"personal hype man|party DJ|loudest fan at every game you play|summer camp counselor|motivational quote guy|sports radio host|cheer squad captain|football team captain|gym class legend|battle rap host|marching band drum major|esports caster|pep rally emcee|motivational speaker in training|stadium announcer|rec league MVP|boxing ring announcer|game show host|hype video editor|spin class instructor|boxing cornerman|homecoming king|festival stage manager|wedding MC|pregame playlist curator"},
+ {k:"wise",label:"Wise",c1:"#4b3cf0",c2:"#c04ee0",style:"Calm, grounded, big picture. Has seen every version of your problem before.",
+  roles:"high school teacher|oldest brother with two kids|social worker|former Marine|night-shift ER nurse|guy with his own place and a real job|librarian|small business owner|guidance counselor|youth center mentor|airline pilot|old-school barber|bartender who actually listens|city bus driver who's seen everything|travel nurse|college professor|ski patrol veteran|ship captain|advice columnist|carpenter|newspaper editor|choir director|family doctor|hospice volunteer|Peace Corps alum"},
+ {k:"grind",label:"Grind",c1:"#d7263d",c2:"#f6a33b",style:"Locked in, thinks in priorities and plans, respects hard work. Tired but motivated.",
+  roles:"investment banking analyst|startup founder who failed twice|electrician who built his own business|law student|car dealership owner|pre-med with a color-coded planner|real estate agent|management consultant|ex-day trader who'll tell you not to day trade|accountant|private equity associate|sneaker store owner|restaurant general manager|MBA student|top salesman on the leaderboard|finance guy who's skeptical of crypto|guy working three jobs through school|wrestler turned entrepreneur|warehouse operations manager|venture capital intern|guy who's run a lawn business since 14|CPA studying for the exam|marketing exec|construction foreman|YouTube channel grinder"},
+ {k:"creative",label:"Creative",c1:"#9b3cf6",c2:"#ff6ec7",style:"Sees things from weird angles, notices details, thinks feelings are worth making something out of.",
+  roles:"film student|graphic designer|photographer|short story writer|oil painter|animator|architecture student|slam poet|theater set designer|comic book artist|potter|theater actor|screenwriter|muralist|video editor|interior designer|sculptor|novelist|stop-motion filmmaker|calligrapher|glassblower|documentary filmmaker|art museum tour guide|origami guy|jewelry maker"},
+ {k:"sporty",label:"Sporty",c1:"#00b86b",c2:"#00c6ff",style:"Team-first, competitive, big on effort and bouncing back. Gives you the next play.",
+  roles:"gym bro|D1 soccer player|youth basketball coach|marathon runner|baseball pitcher|wrestler|competitive swimmer|tennis player|hockey goalie|lacrosse midfielder|boxer|golf caddie|volleyball setter|track sprinter|water polo player|BMX rider|rugby player|college rower|quarterback|pickleball fanatic|jiu-jitsu blue belt|fencing captain|Little League umpire|cross country captain|MMA fighter"},
+ {k:"brainy",label:"Brainy",c1:"#0052ff",c2:"#4ee7ff",style:"Logical and curious. Breaks problems down, but still gets the feelings part.",
+  roles:"computer science major|engineer who debugs life like code|debate team captain|chess strategist|history nerd|data scientist|physics grad student|math olympiad kid|philosophy PhD student|economist|astronomer|biology researcher|robotics team captain|linguist who speaks six languages|quiz bowl champion|psychology major|chemist|actuary|cybersecurity analyst|archaeologist|neuroscience student|editor and former spelling bee champ|mock trial captain|Rubik's cube speedsolver|museum curator"},
+ {k:"outdoors",label:"Outdoors",c1:"#1f7a4d",c2:"#f0a830",style:"Slow, steady, cabin-porch wisdom. Thinks most problems look smaller from outside.",
+  roles:"rock climber|lake guy who fishes and camps|backpacking guide|fly fishing guide|rancher|wildlife biologist|ski instructor|snowboarder|river rafting guide|scout troop leader|beekeeper|farmer|tree-climbing arborist|sea kayaker|mountain biker|birdwatcher|trail builder|sailing instructor|horse trainer|storm chaser|scuba instructor|guy building his own cabin|Alaska commercial fisherman|survival skills nerd|stargazer"},
+ {k:"music",label:"Music",c1:"#ff2e88",c2:"#4361ee",style:"Vibes-first. Talks in beats, songs and verses. Has a song for every situation.",
+  roles:"music producer|drummer in a punk band|jazz saxophonist|country singer|hip-hop artist|cellist|guitar teacher|music festival roadie|indie band frontman|sound engineer|piano bar player|mariachi trumpeter|metal guitarist|singer-songwriter|beatboxer|symphony violinist|middle school music teacher|a cappella group leader|bass player|record label intern|K-pop dance cover crew leader|open mic host|ukulele guy|R&B singer|songwriter for other artists"},
+ {k:"tech",label:"Tech",c1:"#00d26a",c2:"#7b2ff7",style:"Online a lot, fluent in internet culture, solves problems like a puzzle.",
+  roles:"competitive gamer|game designer|startup software engineer|streamer|app developer|IT help desk guy|ethical hacker|drone pilot|3D printing guy|Minecraft server admin|VR developer|speedrunner|AI researcher|custom PC builder|tech YouTuber|Discord moderator|retro game collector|video game tester|product manager|web designer|esports coach|ham radio operator|D&D dungeon master|fantasy football commissioner|smart home tinkerer"},
+ {k:"trades",label:"Trades",c1:"#b5541c",c2:"#f2c14e",style:"Practical, hands-on, no nonsense. Fixes things and explains them simply.",
+  roles:"plumber|welder|auto mechanic|house framer|HVAC tech|roofer|auto body painter|diesel mechanic|landscaper|machinist|elevator repairman|stonemason|tow truck driver|locksmith|boat mechanic|tile setter|crane operator|power lineman|custom motorcycle builder|appliance repair guy|union ironworker|handyman|house painter|forklift driver|sign maker"},
+ {k:"helpers",label:"Helpers",c1:"#e63946",c2:"#1d4e89",style:"Steady, selfless, calm in a crisis. Always shows up for people.",
+  roles:"firefighter|EMT|Coast Guard rescue swimmer|Army medic|wildland firefighter|search and rescue volunteer|911 dispatcher|Navy sailor|Air Force mechanic|paramedic|Red Cross volunteer|crisis line volunteer|rescue dog handler|firehouse cook|youth mentor|food bank organizer|home builder for families in need|special ed aide|nonprofit founder|refugee resettlement volunteer|Marine reservist|National Guard soldier|hospital orderly|shelter volunteer|disaster relief worker"},
+ {k:"zen",label:"Zen",c1:"#5fa38a",c2:"#b39ddb",style:"Unhurried and grounded. Helps you slow down and breathe before you decide anything.",
+  roles:"meditation teacher|retreat leader|tai chi practitioner|journaling guy|minimalist who owns 40 things|tea shop owner|breathwork coach|Stoic philosophy nerd|bonsai grower|sleep schedule evangelist|community gardener|nature journaler|guy who ditched his smartphone|massage therapist|aquarium keeper|lighthouse keeper|retreat center cook|sourdough baker who preaches patience|jigsaw puzzle guy|rock stacker|night sky photographer|farmers market vendor|koi pond keeper|hot springs caretaker|lo-fi beat maker"},
+ {k:"foodie",label:"Foodie",c1:"#ff4b2b",c2:"#ffc93c",style:"Warm, generous, kitchen-tough. Everything's a recipe and food fixes half of it.",
+  roles:"line cook turned chef|pizza maker|BBQ pitmaster|sushi apprentice|bread baker|ramen shop owner|coffee roaster|food critic|butcher|pastry chef|home cook trained by his grandma|ice cream flavor inventor|hot sauce maker|food YouTuber|culinary student|diner short-order cook|dumpling maker|cheesemonger|bagel shop owner|deli counter guy|smoothie bar owner|school lunch legend|private chef|empanada spot owner|cereal critic"},
+ {k:"romantic",label:"Romantic",c1:"#ff2f6e",c2:"#ffa47a",style:"Smooth but respectful. All about confidence, honesty and treating people right.",
+  roles:"wedding planner|guy who just got engaged|smooth talker|hopeless romantic|long-distance relationship survivor|florist|guy who got dumped and learned from it|love letter writer|the best wingman|salsa dancer|couples photographer|rom-com expert|guy who married his high school sweetheart|last single guy in the friend group|respectful dating coach|cologne collector|guy who serenades with a guitar|guy who texts in poetry|old-school gentleman|prom king|speed dating host|amateur matchmaker|best man seven times over|slow dance expert|heartbreak survivor"},
+ {k:"hometown",label:"Hometown",c1:"#3d2c8d",c2:"#ff7e5f",style:"Proud of where he's from. Uses that city's slang naturally, never like a caricature.",
+  roles:"Philly guy who says jawn|Chicago guy|Brooklyn barber|LA hustler|Atlanta guy|Houston guy|Bay Area guy|Miami guy|Detroit guy|Boston guy|Jersey guy|New Orleans guy|Seattle guy|DC guy|Vegas guy|Toronto guy|London lad|Dublin guy|Sydney guy|Texas guy|Bronx guy|Nashville guy|Portland guy|Denver guy|San Diego guy"},
+ {k:"adventure",label:"Adventure",c1:"#00a6fb",c2:"#ff7b00",style:"Restless and curious. Has a story from somewhere for every problem.",
+  roles:"backpacker who's been to 30 countries|flight attendant|cruise ship crew member|former exchange student|van lifer|travel vlogger|English teacher in Japan|ski bum|skydiving instructor|cross-country cyclist|motorcycle road-tripper|mountaineer|deep sea diver|tour guide in Rome|gap year guy|Antarctic researcher|cargo ship sailor|bungee jump operator|digital nomad|hostel owner|Euro rail traveler|safari guide|polyglot|road trip playlist guy|hot air balloon pilot"},
+ {k:"style",label:"Style",c1:"#1a1a1a",c2:"#d4a72c",style:"Put-together, confident, notices everything. Believes how you carry yourself matters.",
+  roles:"personal stylist|sneakerhead|thrift flipper|tailor|model|fashion student|streetwear designer|watch collector|menswear blogger|hair stylist|skincare guy|vintage collector|personal shopper|costume designer|fashion photographer|luxury retail associate|three-piece suit guy|skate brand owner|hat collector|denim nerd|outfit-of-the-day creator|barbershop owner|eyewear designer|fragrance reviewer|closet organizer"},
+ {k:"soft",label:"Soft",c1:"#ef6fa6",c2:"#6fa8f2",style:"Gentle, emotional, great listener. Not afraid to say he cares.",
+  roles:"kindergarten teacher|pediatric nurse|animal shelter worker|vet tech|manny|guy who takes care of his grandma|therapy dog handler|Special Olympics coach|babysitting legend|children's librarian|hospital clown|guy who cries at movies|friend who always texts back|cat dad|foster puppy raiser|mentor for younger kids|peer tutor|guy who makes homemade cards|everyone's emotional support friend|comfort food cook|gentle giant bouncer|his little sister's favorite person|unashamed stuffed animal collector|guy who writes letters to his friends|recovering people-pleaser"}
+];
+const NAMES = "Jalen Kai Theo Ruben Eli Marco Sam Dev Tyler Benny Luis Gabe Omar Connor Andre Jordan Mikey Isaiah Chris Malik Daniel Henry Ari Victor Nate Will Ryan Jay Carlos Ben Hassan Trevor Leo Miles Felix Rafa Quinn Diego Mason Jake Cole Darius Luke Hunter Ravi Owen Simon Kenji Adam Felipe Xavier Mateo Jonah Caleb Dante Aiden Marcus Tommy Rico Sean Zach Wes Jamal Nico Bryce Ty Emmett Sol Rohan Hugo Max Reggie Tariq Kofi Pablo Noah Levi Jesse Brody Amir Dom Jasper Silas Rocco Ezra Kenny Rami Cyrus Dylan Grant Shane Bo Moses Andy Raf Pete Desmond Joel Abe Cam Nash Zeke Ollie Arlo Reid Finn Javi Mo Vince Ike Lorenzo Kwame Tobias Rex Jude Hector Ash Beck Corey Davi Enzo Gus Hiro Ivan Jett Kobe Lars Milo Niko Otis Paxton Rhys Santi Tate Uri Vaughn Wyatt Yusuf Zane Bilal Chase Drew".split(" ");
+const INITIALS = "ABCDFGHJKLMNPRSTVW";
+
+const BROS = []; const byId = {};
+CATS.forEach((c, ci) => c.roles.split("|").forEach((w, ri) => {
+  const idx = ci * 25 + ri;
+  const n = NAMES[(idx * 7 + ci * 3) % NAMES.length] + " " + INITIALS[(idx * 5 + ri) % INITIALS.length] + ".";
+  const a = 17 + ((idx * 11 + ci * 7 + ri * 3) % 22);
+  const b = {id: c.k + "-" + ri, cat: c, n, a, w};
+  BROS.push(b); byId[b.id] = b;
+}));
+
+// The brother's instructions live on the server (lib/prompt.js).
+
+const $ = s => document.querySelector(s);
+const app = $("#app"), thread = $("#thread"), input = $("#input"), send = $("#send"), ageEl = $("#age");
+let ages = {};
+try { ages = JSON.parse(localStorage.getItem("brotherly-ages") || "{}") || {}; } catch(e){ ages = {}; }
+const ageOf = b => ages[b.id] || b.a;
+const firstName = b => b.n.split(" ")[0];
+const tint = (el, b) => { el.style.setProperty("--c1", b.cat.c1); el.style.setProperty("--c2", b.cat.c2); };
+const persona = b => `Who you are: ${firstName(b)}, ${ageOf(b)} years old, ${b.w}. Personality: ${b.cat.style} Talk like a ${ageOf(b)} year old would, and let your job and life shape your stories and examples.`;
+
+const CELEBS = [
+  {k:"nba", t:"NBA All-Star"}, {k:"rap", t:"Chart-topping rapper"}, {k:"qb", t:"NFL quarterback"},
+  {k:"stream", t:"Top streamer"}, {k:"comic", t:"Stand-up comedian"}, {k:"skate", t:"Pro skater"},
+  {k:"soccer", t:"World Cup soccer star"}, {k:"actor", t:"Movie star"}
+];
+let plan = "pro", billing = "year", notify = {};
+try { plan = localStorage.getItem("brotherly-plan") || "pro"; notify = JSON.parse(localStorage.getItem("brotherly-notify") || "{}") || {}; } catch(e){}
+const week = Math.floor(Date.now() / 6048e5);
+const FREE = new Set(Array.from({length:10}, (_, i) => BROS[(week * 37 + i * 50 + i * 7) % BROS.length].id));
+const isLocked = b => plan === "free" && !FREE.has(b.id);
+function textsToday(){ try { const o = JSON.parse(localStorage.getItem("brotherly-count") || "{}"); return o.d === new Date().toDateString() ? o.n : 0; } catch(e){ return 0; } }
+function bumpTexts(){ try { localStorage.setItem("brotherly-count", JSON.stringify({d:new Date().toDateString(), n:textsToday() + 1})); } catch(e){} }
+let bro = byId["chill-0"];
+try { const s = localStorage.getItem("brotherly-bro2"); if (s && byId[s]) bro = byId[s]; } catch(e){}
+if (isLocked(bro)) bro = byId[[...FREE][0]];
+let history = [], busy = false, started = false, lastSender = null, filter = "all";
+
+function paintCurrent(){
+  tint(document.documentElement, bro);
+  $("#cur-av").textContent = bro.n[0];
+  $("#cur-name").textContent = firstName(bro) + ", " + ageOf(bro);
+  const who = $("#cur-who"); who.textContent = "";
+  const tag = document.createElement("span"); tag.className = "ai-tag"; tag.textContent = "AI";
+  who.append(tag, bro.cat.label + " · " + bro.w);
+  ageEl.value = ageOf(bro); $("#age-val").textContent = ageOf(bro);
+  $("#age-reset").hidden = !ages[bro.id];
+}
+
+let lastBubble = null;
+function bubble(role, text, b = bro){
+  const side = role === "user" ? "you" : "bro";
+  const d = document.createElement("div"); d.className = "msg " + side + " tail";
+  tint(d, b);
+  if (lastBubble && lastBubble.isConnected && lastBubble.classList.contains(side) && lastBubble.nextElementSibling === null) lastBubble.classList.remove("tail");
+  else d.classList.add("first");
+  lastSender = side;
+  d.textContent = text; thread.append(d); lastBubble = d; thread.scrollTop = thread.scrollHeight;
+  return d;
+}
+function stamp(){
+  const d = document.createElement("div"); d.className = "stamp";
+  const b = document.createElement("b"); b.textContent = "Today ";
+  d.append(b, new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}));
+  thread.append(d); lastBubble = null;
+}
+function sys(text, bold, b){
+  const d = document.createElement("div"); d.className = "sys"; d.append(text);
+  if (bold){ const x = document.createElement("b"); x.textContent = bold; if (b) tint(x, b); d.append(x); }
+  thread.append(d); lastSender = null; lastBubble = null; thread.scrollTop = thread.scrollHeight; return d;
+}
+function showExample(){
+  thread.innerHTML = ""; lastSender = null;
+  sys("Example convo");
+  bubble("user", "I bombed my chem test and my parents are gonna see it on the portal tonight");
+  bubble("bro", "bro got cooked by the periodic table");
+  bubble("bro", "how bad we talking");
+  bubble("user", "like a 58");
+  bubble("bro", "ok thats not a grade thats a speed limit lmao");
+  bubble("bro", "real talk tho tell them before the portal does. parents get way madder about getting surprised than the actual grade");
+  bubble("bro", "you think you can do that before dinner?");
+}
+function clearExample(){ if (started) return; started = true; thread.innerHTML = ""; lastSender = null; lastBubble = null; $("#starters").hidden = true; stamp(); }
+let lastBreak = Date.now();
+try { lastBreak = Number(sessionStorage.getItem("brotherly-break")) || Date.now(); sessionStorage.setItem("brotherly-break", lastBreak); } catch(e){}
+function maybeBreakReminder(){
+  if (Date.now() - lastBreak < 3 * 3600e3) return;
+  lastBreak = Date.now(); try { sessionStorage.setItem("brotherly-break", lastBreak); } catch(e){}
+  sys("Reminder: your brother is an AI. You've been texting a while, so this is a good time to take a break.");
+}
+const dots = el => { el.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>'; };
+
+async function ask(text){
+  text = text.trim(); if (busy || !text) return;
+  if (plan === "free" && textsToday() >= 30){ openPlans("You've used your 30 free texts today. Keep the convo going with Brotherly+."); return; }
+  bumpTexts();
+  clearExample(); busy = true; send.disabled = true; maybeBreakReminder();
+  const speaker = bro;
+  history.push({role:"user", content:text}); bubble("user", text);
+  thread.querySelectorAll(".receipt").forEach(r => r.remove());
+  const rc = document.createElement("div"); rc.className = "receipt"; rc.textContent = "Delivered"; thread.append(rc);
+  const userBubble = lastBubble;
+  await new Promise(res => setTimeout(res, 700 + Math.random() * 900));
+  rc.textContent = "Read " + new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+  await new Promise(res => setTimeout(res, 500 + Math.random() * 1200));
+  rc.remove(); lastBubble = userBubble;
+  const out = bubble("bro", "", speaker); dots(out);
+  thread.insertBefore(rc, out);
+  try {
+    const resp = await fetch("/api/chat", {
+      method: "POST", headers: {"content-type": "application/json"},
+      body: JSON.stringify({ persona: {name: firstName(speaker), age: ageOf(speaker), role: speaker.w, style: speaker.cat.style}, messages: history })
+    });
+    const r = await resp.json().catch(() => ({}));
+    if (!resp.ok || !r.text) throw {message: r.error || "That didn't send. Try again."};
+    const parts = r.text.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+    out.textContent = parts[0] || r.text;
+    for (const p of parts.slice(1)){
+      const t = bubble("bro", "", speaker); dots(t); t.previousElementSibling && t.previousElementSibling.classList.remove("tail");
+      await new Promise(res => setTimeout(res, 600 + Math.random() * 500 + Math.min(p.length * 35, 2600)));
+      t.textContent = p; thread.scrollTop = thread.scrollHeight;
+    }
+    history.push({role:"assistant", content:r.text});
+  } catch(e){
+    out.remove(); history.pop();
+    sys(navigator.onLine === false ? "You're offline. Reconnect and send again." : (e && e.message) || "That didn't send. Try again.");
+  }
+  busy = false; send.disabled = false; input.focus();
+}
+
+/* Age slider */
+ageEl.addEventListener("input", () => {
+  const v = +ageEl.value;
+  if (v === bro.a) delete ages[bro.id]; else ages[bro.id] = v;
+  $("#age-val").textContent = v;
+  $("#cur-name").textContent = firstName(bro) + ", " + v;
+  $("#age-reset").hidden = !ages[bro.id];
+});
+ageEl.addEventListener("change", () => {
+  try { localStorage.setItem("brotherly-ages", JSON.stringify(ages)); } catch(e){}
+  if (started) sys(firstName(bro) + " is now ", String(ageOf(bro)), bro);
+});
+$("#age-reset").addEventListener("click", () => { delete ages[bro.id]; try { localStorage.setItem("brotherly-ages", JSON.stringify(ages)); } catch(e){} paintCurrent(); });
+
+const ageRow = $("#age-row"), ageToggle = $("#age-toggle");
+function setAgeVisible(v){ ageRow.hidden = !v; ageToggle.setAttribute("aria-pressed", String(v)); try { localStorage.setItem("brotherly-age-open", v ? "1" : "0"); } catch(e){} }
+ageToggle.addEventListener("click", () => { if (plan === "free"){ openPlans("Change any brother's age with Brotherly+."); return; } setAgeVisible(ageRow.hidden); });
+try { if (localStorage.getItem("brotherly-age-open") === "1") ageRow.hidden = false, ageToggle.setAttribute("aria-pressed","true"); } catch(e){}
+
+/* Picker */
+const sheet = $("#sheet"), grid = $("#grid"), search = $("#search");
+function buildFilters(){
+  const f = $("#filters");
+  const mk = (key, label, c) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "filter" + (c ? "" : " all"); b.id = "f-" + key; b.dataset.key = key;
+    if (c){ b.style.setProperty("--c1", c.c1); b.style.setProperty("--c2", c.c2); const d = document.createElement("span"); d.className = "dot"; b.append(d); }
+    b.append(document.createTextNode(label));
+    b.addEventListener("click", () => { filter = key; renderGrid(); grid.scrollTop = 0; });
+    f.append(b);
+  };
+  mk("all", "All 500");
+  CATS.forEach(c => mk(c.k, c.label, c));
+}
+function renderGrid(){
+  document.querySelectorAll(".filter").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.key === filter)));
+  const q = search.value.trim().toLowerCase();
+  const list = BROS.filter(b => (filter === "all" || b.cat.k === filter) &&
+    (!q || (b.n + " " + ageOf(b) + " " + b.w + " " + b.cat.label + " " + b.cat.style).toLowerCase().includes(q)));
+  $("#count").textContent = list.length + (list.length === 1 ? " brother" : " brothers");
+  const frag = document.createDocumentFragment();
+  if (filter === "all" && !q) frag.append(celebSection());
+  if (!list.length){ const e = document.createElement("div"); e.className = "empty"; e.textContent = "No brother matches that. Try a different word."; frag.append(e); }
+  if (plan === "free") list.sort((x, y) => isLocked(x) - isLocked(y));
+  for (const b of list){
+    const c = document.createElement("button"); c.type = "button"; c.className = "card"; c.id = "b-" + b.id; tint(c, b);
+    if (b.id === bro.id) c.setAttribute("aria-current", "true");
+    const av = document.createElement("span"); av.className = "av"; av.textContent = b.n[0];
+    const tx = document.createElement("span"); tx.className = "card-text";
+    const nm = document.createElement("div"); nm.className = "card-name"; nm.append(b.n + " ");
+    const ag = document.createElement("span"); ag.className = "age"; ag.textContent = ageOf(b); nm.append(ag);
+    const wh = document.createElement("div"); wh.className = "card-who"; wh.textContent = b.w;
+    tx.append(nm, wh); c.append(av, tx);
+    if (isLocked(b)){ c.classList.add("locked"); const l = document.createElement("span"); l.className = "lock"; l.textContent = "PLUS"; c.append(l); }
+    c.addEventListener("click", () => choose(b));
+    frag.append(c);
+  }
+  grid.replaceChildren(frag);
+}
+function celebSection(){
+  const box = document.createElement("div"); box.className = "celeb";
+  const head = document.createElement("div"); head.className = "celeb-head";
+  const h = document.createElement("h3"); h.textContent = "Celebrity brothers";
+  const pp = document.createElement("span"); pp.className = "pro-pill"; pp.textContent = "PRO"; h.append(pp);
+  const p = document.createElement("p"); p.textContent = "Officially licensed, coming soon. Tap one to get notified.";
+  head.append(h, p);
+  const g = document.createElement("div"); g.className = "celeb-grid";
+  for (const c of CELEBS){
+    const b = document.createElement("button"); b.type = "button"; b.className = "ccard"; b.id = "c-" + c.k;
+    b.setAttribute("aria-pressed", String(!!notify[c.k]));
+    const av = document.createElement("span"); av.className = "av"; av.textContent = "★";
+    const tx = document.createElement("span"); const t = document.createElement("b"); t.textContent = c.t;
+    const s2 = document.createElement("span"); s2.className = "soon"; s2.textContent = notify[c.k] ? "You'll be notified" : "Coming soon";
+    tx.append(t, s2); b.append(av, tx);
+    b.addEventListener("click", () => {
+      if (plan !== "pro"){ openPlans("Celebrity brothers come with Brotherly Pro."); return; }
+      notify[c.k] = !notify[c.k]; try { localStorage.setItem("brotherly-notify", JSON.stringify(notify)); } catch(e){}
+      b.setAttribute("aria-pressed", String(!!notify[c.k])); s2.textContent = notify[c.k] ? "You'll be notified" : "Coming soon";
+    });
+    g.append(b);
+  }
+  box.append(head, g); return box;
+}
+function choose(b){
+  if (isLocked(b)){ openPlans("Unlock all 500 brothers with Brotherly+."); return; }
+  const changed = b.id !== bro.id; bro = b; paintCurrent();
+  try { localStorage.setItem("brotherly-bro2", b.id); } catch(e){}
+  closeSheet();
+  if (changed){ if (started) sys("Now texting ", firstName(b) + ", " + ageOf(b) + ", " + b.w, b); else showExample(); }
+}
+function openSheet(){ if (wide()){ if (document.body.classList.contains("side-hidden")) setSide(true); search.focus(); return; } sheet.hidden = false; renderGrid(); }
+const wide = () => matchMedia("(min-width:900px)").matches;
+function closeSheet(){ sheet.hidden = true; if (wide()) renderGrid(); else $("#current").focus(); }
+$("#current").addEventListener("click", openSheet);
+$("#close").addEventListener("click", closeSheet);
+$("#random").addEventListener("click", () => choose(BROS[Math.floor(Math.random() * BROS.length)]));
+search.addEventListener("input", renderGrid);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !sheet.hidden) closeSheet(); });
+
+$("#form").addEventListener("submit", e => { e.preventDefault(); const t = input.value; input.value = ""; input.style.height = ""; ask(t); });
+input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); $("#form").requestSubmit(); }});
+input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 140) + "px"; });
+document.querySelectorAll(".starter").forEach(b => b.addEventListener("click", () => ask(b.textContent)));
+$("#reset").addEventListener("click", () => { history = []; started = false; $("#starters").hidden = false; showExample(); });
+
+/* Plans */
+const plansEl = $("#plans");
+function paintPlans(){
+  const y = billing === "year";
+  $("#bill-year").setAttribute("aria-pressed", String(y)); $("#bill-month").setAttribute("aria-pressed", String(!y));
+  $("#price-plus").innerHTML = y ? "$59.99<small> / year</small>" : "$7.99<small> / month</small>";
+  $("#price-pro").innerHTML = y ? "$119.99<small> / year</small>" : "$14.99<small> / month</small>";
+  for (const t of ["free","plus","pro"]){
+    const btn = $("#pick-" + t);
+    btn.textContent = plan === t ? "Your current plan" : t === "free" ? "Use Free" : t === "plus" ? "Try Brotherly+ free for 7 days" : "Try Pro free for 7 days";
+    btn.disabled = plan === t;
+  }
+  const pb = $("#plan-btn"); pb.dataset.plan = plan; pb.textContent = plan === "plus" ? "PLUS" : plan.toUpperCase();
+}
+function openPlans(reason){
+  const r = $("#plans-reason"); r.hidden = !reason; r.textContent = reason || "";
+  paintPlans(); plansEl.hidden = false;
+}
+function closePlans(){ plansEl.hidden = true; }
+function setPlan(p){
+  plan = p; try { localStorage.setItem("brotherly-plan", p); } catch(e){}
+  if (isLocked(bro)) choose(byId[[...FREE][0]]);
+  if (plan === "free") setAgeVisible(false);
+  paintPlans(); paintCurrent(); renderGrid(); closePlans();
+  if (started) sys("You're now on ", p === "free" ? "Free" : p === "plus" ? "Brotherly+" : "Brotherly Pro");
+}
+$("#plan-btn").addEventListener("click", () => openPlans());
+$("#plans-close").addEventListener("click", closePlans);
+plansEl.addEventListener("click", e => { if (e.target === plansEl) closePlans(); });
+$("#bill-year").addEventListener("click", () => { billing = "year"; paintPlans(); });
+$("#bill-month").addEventListener("click", () => { billing = "month"; paintPlans(); });
+for (const t of ["free","plus","pro"]) $("#pick-" + t).addEventListener("click", () => setPlan(t));
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !plansEl.hidden) closePlans(); });
+
+/* Sidebar toggle (desktop) */
+const sideBtn = $("#side-toggle");
+function setSide(show){
+  document.body.classList.toggle("side-hidden", !show);
+  sideBtn.textContent = show ? "Hide list" : "Show list"; sideBtn.setAttribute("aria-pressed", String(show));
+  try { localStorage.setItem("brotherly-side", show ? "1" : "0"); } catch(e){}
+}
+sideBtn.addEventListener("click", () => setSide(document.body.classList.contains("side-hidden")));
+try { if (localStorage.getItem("brotherly-side") === "0") setSide(false); } catch(e){}
+
+buildFilters(); paintCurrent(); paintPlans(); showExample(); renderGrid();
+matchMedia("(min-width:900px)").addEventListener("change", renderGrid);
+if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+</script>
+</body>
+</html>
